@@ -1,14 +1,14 @@
 ---
 name: create-hermes-profile
-description: "Use when creating and initializing a Hermes Agent profile through an interview-driven workflow: choose creation mode, run model/tools/gateway setup in PTY, start the profile gateway, and verify profile/gateway state without changing the sticky default profile."
-version: 1.0.0
+description: "Use when creating and initializing a Hermes Agent profile through an interview-driven workflow: choose creation mode, run model/tools/gateway setup in PTY, start the profile gateway, and verify profile/gateway state without changing the sticky default profile. Hands off to hermes-md-wizard for SOUL.md/HERMES.md setup."
+version: 1.1.0
 author: Hermes Agent
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
   hermes:
     tags: [Hermes, Profiles, Gateway, Setup, Multi-Agent]
-    related_skills: [hermes-agent]
+    related_skills: [hermes-agent, hermes-md-wizard]
 ---
 
 # Create Hermes Profile
@@ -26,7 +26,7 @@ Hermes Agent 프로필을 새로 만들고, 모델/도구/게이트웨이 초기
 - Kanban/멀티 프로필 운영을 위해 역할별 Hermes profile을 추가할 때
 - 프로필 생성 모드를 fresh/clone/clone-all/clone-from 중에서 사용자에게 물어야 할 때
 
-Do **not** use this skill for:
+다음 작업에는 이 스킬을 쓰지 **않습니다:**
 
 - 기존 프로필 삭제/rename/export/import만 하는 작업
 - profile workspace 경로 이동 또는 wiki relocation 작업
@@ -117,11 +117,11 @@ hermes profile create NAME --clone-all --clone-from SOURCE
 hermes profile create NAME --description "one- or two-sentence role description"
 ```
 
-Notes:
+참고:
 
-- `--no-skills` is mutually exclusive with clone modes. If the user asks for both, stop and ask which is more important.
-- `--clone-all` can carry substantial state from the source profile. Use only when the user explicitly chooses it.
-- Do not add `--no-alias` unless the user explicitly asks to skip wrapper alias creation.
+- `--no-skills`는 clone 모드와 함께 쓸 수 없습니다. 사용자가 둘 다 요청하면 멈추고 어느 쪽이 더 중요한지 물어봅니다.
+- `--clone-all`은 source profile의 상당한 상태를 함께 가져옵니다. 사용자가 명시적으로 고른 경우에만 사용합니다.
+- `--no-alias`는 사용자가 wrapper alias 생성을 건너뛰라고 명시한 경우에만 추가합니다.
 
 ### 3. Create the Profile
 
@@ -129,25 +129,25 @@ Notes:
 hermes profile create NAME [...selected flags...]
 ```
 
-If creation fails:
+생성에 실패하면:
 
-- Do not delete anything automatically.
-- Show the non-secret error summary.
-- Ask the user how to proceed.
+- 아무것도 자동으로 삭제하지 않습니다.
+- 비밀값을 제외한 에러 요약을 보여줍니다.
+- 사용자에게 어떻게 진행할지 물어봅니다.
 
 ### 4. Optional Description
 
-If the user provided a description and it was not included in the create command:
+사용자가 설명을 줬는데 생성 명령에 포함하지 못했다면:
 
 ```bash
 hermes profile describe NAME --text "one- or two-sentence role description"
 ```
 
-If the user skipped description, continue without it.
+사용자가 설명을 건너뛰었다면 그대로 진행합니다.
 
 ### 5. Interactive Setup via PTY
 
-Run setup sections one at a time in PTY. For interactive sessions, prefer background PTY so prompts can be read and answered deliberately.
+setup 섹션을 PTY에서 한 번에 하나씩 실행합니다. 대화형 세션에서는 prompt를 읽고 신중히 답할 수 있도록 background PTY를 권장합니다.
 
 ```bash
 hermes --profile NAME setup model
@@ -163,28 +163,34 @@ process(action="poll", session_id="...")
 process(action="submit", session_id="...", data="user answer")
 ```
 
-Repeat for `tools` and `gateway`.
+`tools`, `gateway`에 대해서도 반복합니다.
 
-During setup:
+setup 중에는:
 
-- Relay ambiguous wizard prompts to the user instead of guessing.
-- If the prompt asks for a token/API key and the user provides it in chat, submit or write it only to the target profile’s config/env path.
-- Do not include full tokens/API keys in final summaries.
-- If setup becomes stuck, close/kill only the setup process for the target profile, not unrelated profile gateways.
+- 애매한 wizard prompt는 추측하지 말고 사용자에게 그대로 전달합니다.
+- prompt가 token/API key를 요구하고 사용자가 채팅으로 제공하면, 대상 profile의 config/env 경로에만 입력·기록합니다.
+- 최종 요약에 전체 token/API key를 포함하지 않습니다.
+- setup이 멈추면, 무관한 profile gateway가 아니라 대상 profile의 setup 프로세스만 종료합니다.
 
 ### 6. Start Gateway
 
-After gateway setup completes:
+gateway setup이 끝나면:
 
 ```bash
 hermes --profile NAME gateway start
 ```
 
-Avoid `--all` unless the user explicitly asks, because it can kill stale gateway processes across profiles.
+`--all`은 여러 profile의 stale gateway 프로세스를 함께 종료할 수 있으므로, 사용자가 명시적으로 요청한 경우가 아니면 쓰지 않습니다.
 
 ### 7. Verify
 
-Run all checks before reporting success.
+성공을 보고하기 전에 모든 검증을 수행합니다. 번들된 헬퍼는 모든 검증을 한 번에 실행하고 PASS/WARN/FAIL 요약을 출력하므로 어떤 검사도 조용히 누락되지 않습니다:
+
+```bash
+python scripts/verify_profile.py NAME
+```
+
+스크립트를 쓸 수 없을 때 동일하게 수동으로 실행하는 명령:
 
 ```bash
 hermes profile show NAME
@@ -194,17 +200,30 @@ hermes --profile NAME gateway status
 hermes --profile NAME logs gateway --since 10m -n 100
 ```
 
-Interpretation:
+스크립트는 비밀값을 가리지 않습니다 — gateway 로그에 token이 포함될 수 있으니, 출력을 전달하기 전에 직접 가립니다 (Non-Negotiable Rule #4 참고).
 
-- `profile show` should point at `~/.hermes/profiles/NAME/`.
-- `config check` should not report missing model/provider essentials.
-- `tools list` should reflect the selected toolsets.
-- `gateway status` should show the profile gateway as running/healthy when supported by the host.
-- Gateway logs should show platform connection or a clear actionable warning/error.
+해석:
+
+- `profile show`는 `~/.hermes/profiles/NAME/`을 가리켜야 합니다.
+- `config check`는 model/provider 필수값 누락을 보고하지 않아야 합니다.
+- `tools list`는 선택한 toolsets를 반영해야 합니다.
+- `gateway status`는 호스트가 지원하는 경우 profile gateway가 running/healthy로 보여야 합니다.
+- gateway 로그는 플랫폼 연결, 또는 조치 가능한 명확한 경고/에러를 보여야 합니다.
+
+### 8. Hand Off to Identity & Project Rules
+
+이 스킬은 profile과 그 model/tools/gateway를 셋업하지만, profile의 정체성(`SOUL.md`)이나 프로젝트 작업 규칙(`HERMES.md`)은 **다루지 않습니다.** 이 둘은 새 profile 폴더(`~/.hermes/profiles/NAME/`)에 들어가며, 에이전트가 어떻게 말하고 일할지를 정합니다.
+
+검증이 성공하면, 이 새 profile을 루트로 삼아 `hermes-md-wizard` 스킬로 이어가자고 제안합니다:
+
+> 프로필 셋업은 끝났어요. 이 프로필의 성격(SOUL.md)과 작업 규칙(HERMES.md)도
+> 잡아드릴까요? `hermes-md-wizard`로 바로 이어서 만들 수 있어요.
+
+사용자가 동의하면 `hermes-md-wizard`를 로드하고 루트를 `~/.hermes/profiles/NAME/`로 지정합니다. 거절하면 여기서 마칩니다.
 
 ## Final Response Format
 
-Keep the final response concise and operational.
+최종 응답은 간결하고 실무적으로 유지합니다.
 
 ```markdown
 지녕님, 새 Hermes 프로필 생성/설정 완료했습니다.
@@ -221,9 +240,11 @@ Keep the final response concise and operational.
 
 다음 사용 예:
 `hermes --profile NAME chat`
+
+다음 단계(선택): `hermes-md-wizard`로 이 프로필의 SOUL.md/HERMES.md 설정
 ```
 
-Never print secrets in the final response.
+최종 응답에 비밀값을 절대 출력하지 않습니다.
 
 ## Common Pitfalls
 
@@ -249,24 +270,25 @@ Never print secrets in the final response.
 7. **Gateway가 시작됐지만 플랫폼이 조용함**
    - Telegram/Discord 등은 BotFather/Developer Portal 권한, allowed users, home channel, mention/privacy 설정 문제일 수 있습니다. `hermes --profile NAME logs gateway --since 10m -n 100`로 원인을 확인합니다.
 
-8. **Tool changes not visible immediately**
+8. **도구 변경이 즉시 반영되지 않음**
    - 도구/스킬 설정 변경은 새 Hermes session부터 적용될 수 있습니다. 필요하면 새 세션으로 테스트합니다.
 
 ## Verification Checklist
 
-- [ ] User confirmed profile name
-- [ ] User confirmed creation mode
-- [ ] Existing profile collision checked with `hermes profile list`
-- [ ] Profile created with selected `hermes profile create` command
-- [ ] Optional description saved or explicitly skipped
-- [ ] `hermes --profile NAME setup model` completed
-- [ ] `hermes --profile NAME setup tools` completed
-- [ ] `hermes --profile NAME setup gateway` completed
-- [ ] `hermes --profile NAME gateway start` executed
-- [ ] `hermes profile show NAME` verified
-- [ ] `hermes --profile NAME config check` verified
-- [ ] `hermes --profile NAME tools list` verified
-- [ ] `hermes --profile NAME gateway status` verified
-- [ ] `hermes --profile NAME logs gateway --since 10m -n 100` checked
-- [ ] Final response redacts secrets
-- [ ] `hermes profile use NAME` was not executed
+- [ ] 사용자가 프로필 이름을 확인했는가
+- [ ] 사용자가 생성 모드를 확인했는가
+- [ ] `hermes profile list`로 기존 프로필 충돌을 확인했는가
+- [ ] 선택한 `hermes profile create` 명령으로 프로필을 생성했는가
+- [ ] 선택적 설명을 저장했거나 명시적으로 건너뛰었는가
+- [ ] `hermes --profile NAME setup model` 완료
+- [ ] `hermes --profile NAME setup tools` 완료
+- [ ] `hermes --profile NAME setup gateway` 완료
+- [ ] `hermes --profile NAME gateway start` 실행
+- [ ] `hermes profile show NAME` 검증
+- [ ] `hermes --profile NAME config check` 검증
+- [ ] `hermes --profile NAME tools list` 검증
+- [ ] `hermes --profile NAME gateway status` 검증
+- [ ] `hermes --profile NAME logs gateway --since 10m -n 100` 확인
+- [ ] 최종 응답에서 비밀값을 가렸는가
+- [ ] `hermes profile use NAME`을 실행하지 않았는가
+- [ ] `hermes-md-wizard`로 SOUL.md/HERMES.md 핸드오프를 제안했는가
