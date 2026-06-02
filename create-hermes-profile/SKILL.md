@@ -212,7 +212,7 @@ hermes --profile NAME logs gateway --since 10m -n 100
 
 ### 8. Hand Off to Identity & Project Rules
 
-이 스킬은 profile과 그 model/tools/gateway를 셋업하지만, profile의 정체성(`SOUL.md`)이나 프로젝트 작업 규칙(`HERMES.md`)은 **다루지 않습니다.** 이 둘은 새 profile 폴더(`~/.hermes/profiles/NAME/`)에 들어가며, 에이전트가 어떻게 말하고 일할지를 정합니다.
+이 스킬은 profile과 그 model/tools/gateway를 셋업하지만, profile의 정체성(`SOUL.md`)이나 작업 규칙(`HERMES.md`)은 **다루지 않습니다.** 이 둘은 새 profile 폴더(`~/.hermes/profiles/NAME/`)에 들어가며, 에이전트가 어떻게 말하고 일할지를 정합니다.
 
 검증이 성공하면, 이 새 profile을 루트로 삼아 `hermes-md-wizard` 스킬로 이어가자고 제안합니다:
 
